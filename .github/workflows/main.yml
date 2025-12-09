@@ -1,27 +1,47 @@
 name: Build Java Application
-on: 
-    workflow_dispatch:
-    push:
-        branches:
-            - master
-    pull_request:
-        branches:
-            - master
+on:
+  workflow_dispatch:
+    inputs:
+      # user to select the job name
+      job_name:
+        # a keyword to select the jobs
+        description: "Select the Job to run" # desciption visible to users
+        required: true # user should mandatorily select one job for the workflow to start
+        type: choice # job_name stores multiple values for the users to select from 
+        options:
+        # give correct job names
+        - build
+        - codeCoverage
 jobs:
-    job1:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Clone the repo
-              uses: actions/checkout@v6
-            - name: Install java
-              uses: actions/setup-java@v5
-              with: 
-                  distribution: 'temurin'
-                  java-version: '17'
-            - name: Build java code
-              run: mvn clean package
-            - name: Upload artifact to github repo  # download the artifact from the runner to the github repo
-              uses: actions/upload-artifact@v4
-              with: 
-                name: wicket-pwnedpasswords-validator-2.0.1    # name of the artifact that we want to download in the github repo
-                path: /home/runner/work/SonarQubeCoverageJava/SonarQubeCoverageJava/target/wicket-pwnedpasswords-validator-2.0.1-SNAPSHOT.jar 
+  build:
+    if: ${{ github.event.inputs.job_name == 'build' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone the repo
+      uses: actions/checkout@v6
+    - name: Install java
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    - name: Build java code
+      run: mvn clean package
+  codeCoverage:
+    if: ${{ github.event.inputs.job_name == 'codeCoverage' }}
+    #needs: build # creating dependency between 2 jobs. First 'build' job will get completed and then only 'codeCoverage' job will get started
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone the repo
+      uses: actions/checkout@v6
+    - name: Install java on runner
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    - name: Build java code
+      run: mvn clean package
+    - name: Code Coverage using Sonarcloud
+      run: mvn -B verify sonar:sonar -Dsonar.projectKey=skillfyme-sonar-demo_skillfyme-sonar-demo-project -Dsonar.organization=skillfyme-sonar-demo -Dsonar.host.url=https://sonarcloud.io/ -Dsonar.token=$SONAR_TOKEN
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}} # it is an inbuilt variable using which sonarcloud can connect with github 
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
